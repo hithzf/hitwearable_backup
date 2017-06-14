@@ -37,7 +37,22 @@ public class SettingsActivity extends AppCompatActivity {
         mTargetTextPort = (EditText)findViewById(R.id.target_text_port);
         mLocalTextPort = (EditText)findViewById(R.id.local_text_port);
         mBtnConnect = (Button)findViewById(R.id.btn_connect);
-        mBtnDisconnect = (Button)findViewById(R.id.btn_disconnect);
+//        mBtnDisconnect = (Button)findViewById(R.id.btn_disconnect);
+
+        //数据库parameter表初始化
+        if(DataSupport.findAll(Parameter.class).isEmpty()) {
+            Parameter pTargetIP = new Parameter("target_ip", "192.168.1.1");
+            pTargetIP.save();
+            Parameter pTargetFilePort = new Parameter("target_file_port", "29999");
+            pTargetFilePort.save();
+            Parameter pLocalFilePort = new Parameter("local_file_port", "28888");
+            pLocalFilePort.save();
+            Parameter pTargetTextPort = new Parameter("target_text_port", "27777");
+            pTargetTextPort.save();
+            Parameter pLocalTextPort = new Parameter("local_text_port", "26666");
+            pLocalTextPort.save();
+        }
+
         //读取数据库，设置文本框
         String targetIP = DataSupport.where("name = ?", "target_ip").find(Parameter.class).get(0).getValue();
         mTargetIP.setText(targetIP);
@@ -81,17 +96,17 @@ public class SettingsActivity extends AppCompatActivity {
             }
         });
 
-        mBtnDisconnect.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                //关闭文件接收服务
-                Intent stopIntent = new Intent(SettingsActivity.this, VoiceReceiveService.class);
-                stopService(stopIntent);
-                Toast.makeText(MyApplication.getContext(), "文件接收服务已关闭，您将接收不到任何语音消息", Toast.LENGTH_SHORT).show();
-                //回到主界面
-                finish();
-            }
-        });
+//        mBtnDisconnect.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                //关闭文件接收服务
+//                Intent stopIntent = new Intent(SettingsActivity.this, VoiceReceiveService.class);
+//                stopService(stopIntent);
+//                Toast.makeText(MyApplication.getContext(), "文件接收服务已关闭，您将接收不到任何语音消息", Toast.LENGTH_SHORT).show();
+//                //回到主界面
+//                finish();
+//            }
+//        });
     }
 
     @Override

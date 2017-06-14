@@ -279,19 +279,6 @@ public class VoiceActivity extends AppCompatActivity {
      */
     private void initMsg(){
         mDatas = DataSupport.findAll(Msg.class);
-
-//        数据库parameter表初始化
-//        DataSupport.deleteAll(Parameter.class);
-//        Parameter pTargetIP = new Parameter("target_ip", "192.168.1.133");
-//        pTargetIP.save();
-//        Parameter pTargetFilePort = new Parameter("target_file_port", "29999");
-//        pTargetFilePort.save();
-//        Parameter pLocalFilePort = new Parameter("local_file_port", "28888");
-//        pLocalFilePort.save();
-//        Parameter pTargetTextPort = new Parameter("target_text_port", "27777");
-//        pTargetTextPort.save();
-//        Parameter pLocalTextPort = new Parameter("local_text_port", "26666");
-//        pLocalTextPort.save();
     }
 
     @Override
