@@ -6,6 +6,7 @@ package com.hitwearable;
  */
 
 import android.content.Intent;
+import android.net.TrafficStats;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 

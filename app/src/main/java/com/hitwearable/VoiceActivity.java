@@ -9,6 +9,8 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Message;
 import android.provider.MediaStore;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -67,6 +69,20 @@ public class VoiceActivity extends AppCompatActivity {
     private Uri videoUri;
     private File outputVideo;
 
+    private long networkSpeed;
+
+    private Handler mHnadler = new Handler(){
+        @Override
+        public void handleMessage(Message msg) {
+            switch (msg.what) {
+                case 100:
+                    networkSpeed = Long.valueOf(msg.obj.toString()) > networkSpeed ? Long.valueOf(msg.obj.toString()) : networkSpeed;
+                    break;
+            }
+            super.handleMessage(msg);
+        }
+    };
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -74,10 +90,6 @@ public class VoiceActivity extends AppCompatActivity {
         //设置ToolBar
         Toolbar toolbar = (Toolbar)findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-
-        //启动文件接受服务
-//        Intent startIntent = new Intent(this, VoiceReceiveService.class);
-//        startService(startIntent);
 
         //创建数据库
         Connector.getDatabase();
@@ -172,52 +184,78 @@ public class VoiceActivity extends AppCompatActivity {
         mVideoButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                //打开摄像头摄像
-                File dirVoice = new File(Environment.getExternalStorageDirectory() + "/HitWearable/video");
-                if (!dirVoice.exists()) {
-                    dirVoice.mkdirs();//文件夹不存在，则创建文件夹
+                if(networkSpeed < 150){
+                    Toast.makeText(getApplicationContext(), "网速不佳：" + networkSpeed + "kB/s，将发送图片",Toast.LENGTH_SHORT).show();
+                    //打开摄像头拍照
+                    File dirImage = new File(Environment.getExternalStorageDirectory() + "/HitWearable/image");
+                    if (!dirImage.exists()) {
+                        dirImage.mkdirs();//文件夹不存在，则创建文件夹
+                    }
+                    outputImage = new File(dirImage, UUID.randomUUID().toString() + ".jpg");
+                    try {
+                        outputImage.createNewFile();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    if(Build.VERSION.SDK_INT >= 24){
+                        imageUri = FileProvider.getUriForFile(VoiceActivity.this, "com.hitwearable.fileprovider", outputImage);
+                    }else {
+                        imageUri = Uri.fromFile(outputImage);
+                    }
+                    Intent intent = new Intent("android.media.action.IMAGE_CAPTURE");
+                    intent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
+                    startActivityForResult(intent, 1);
+                }else{
+                    Toast.makeText(getApplicationContext(), "网速较佳：" + networkSpeed + "kB/s",Toast.LENGTH_SHORT).show();
+                    //打开摄像头摄像
+                    File dirVoice = new File(Environment.getExternalStorageDirectory() + "/HitWearable/video");
+                    if (!dirVoice.exists()) {
+                        dirVoice.mkdirs();//文件夹不存在，则创建文件夹
+                    }
+                    outputVideo = new File(dirVoice, UUID.randomUUID().toString() + ".mp4");
+                    try {
+                        outputVideo.createNewFile();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    if(Build.VERSION.SDK_INT >= 24){
+                        videoUri = FileProvider.getUriForFile(VoiceActivity.this, "com.hitwearable.fileprovider", outputVideo);
+                    }else {
+                        videoUri = Uri.fromFile(outputVideo);
+                    }
+                    Intent intent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);//create a intent to record video
+                    // set the video file name
+                    intent.putExtra(MediaStore.EXTRA_OUTPUT, videoUri);
+                    // set the video quality high
+                    intent.putExtra(MediaStore.EXTRA_VIDEO_QUALITY, 1);
+                    // start the video capture Intent
+                    startActivityForResult(intent, 2);
                 }
-                outputVideo = new File(dirVoice, UUID.randomUUID().toString() + ".mp4");
-                try {
-                    outputVideo.createNewFile();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                if(Build.VERSION.SDK_INT >= 24){
-                    videoUri = FileProvider.getUriForFile(VoiceActivity.this, "com.hitwearable.fileprovider", outputVideo);
-                }else {
-                    videoUri = Uri.fromFile(outputVideo);
-                }
-                Intent intent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);//create a intent to record video
-                // set the video file name
-                intent.putExtra(MediaStore.EXTRA_OUTPUT, videoUri);
-                // set the video quality high
-                intent.putExtra(MediaStore.EXTRA_VIDEO_QUALITY, 0.5);
-                // start the video capture Intent
-                startActivityForResult(intent, 2);
             }
         });
         mSendButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 //发送文字
-                String textContent = mEditText.getText().toString();
-                mEditText.setText("");
-                //数据库新增
-                Msg msg = new Msg(textContent, Msg.TYPE_SENT, System.currentTimeMillis(), Msg.CATAGORY_TEXT);
-                msg.save();
-                //发送文字到接收端
-                List<Parameter> targetIPList = DataSupport.where("name = ?", "target_ip").find(Parameter.class);
-                String targetIP = targetIPList.get(0).getValue();
-                List<Parameter> targetPortList = DataSupport.where("name = ?", "target_text_port").find(Parameter.class);
-                String targetTextPort = targetPortList.get(0).getValue();//27777
-                networkUtil.sendTextByDatagram(textContent, targetIP, Integer.parseInt(targetTextPort));
+                String textContent = mEditText.getText().toString().trim();
+                if(textContent.length() != 0) {
+                    //数据库新增
+                    Msg msg = new Msg(textContent, Msg.TYPE_SENT, System.currentTimeMillis(), Msg.CATAGORY_TEXT);
+                    msg.save();
+                    //发送文字到接收端
+                    List<Parameter> targetIPList = DataSupport.where("name = ?", "target_ip").find(Parameter.class);
+                    String targetIP = targetIPList.get(0).getValue();
+                    List<Parameter> targetPortList = DataSupport.where("name = ?", "target_text_port").find(Parameter.class);
+                    String targetTextPort = targetPortList.get(0).getValue();//27777
+                    networkUtil.sendTextByDatagram(textContent, targetIP, Integer.parseInt(targetTextPort));
 
-                mDatas.add(msg);
-                //view更新
-                mAdapter.notifyItemInserted(mDatas.size() - 1);
-                //设置位置
-                mRecyclerView.scrollToPosition(mDatas.size() - 1);
+                    mDatas.add(msg);
+                    //view更新
+                    mAdapter.notifyItemInserted(mDatas.size() - 1);
+                    //设置位置
+                    mRecyclerView.scrollToPosition(mDatas.size() - 1);
+                }
+                mEditText.setText("");
             }
         });
 
@@ -256,6 +294,9 @@ public class VoiceActivity extends AppCompatActivity {
                 ContextCompat.checkSelfPermission(VoiceActivity.this, Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED){
             ActivityCompat.requestPermissions(VoiceActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.RECORD_AUDIO, Manifest.permission.INTERNET}, 1);
         }
+
+        //检测网速
+        new NetworkSpeedUtil(this,mHnadler).startShowNetSpeed();
     }
 
     /**
